@@ -1,0 +1,24 @@
+# older files mostly used for experimentation and no longer needed
+archive/
+
+# data (.csv files) resulting from experiments in notebooks
+experiments/
+
+# VS Code settings
+.vscode/
+
+# Others, copied from the .gitignore template at:
+# https://github.com/github/gitignore/blob/main/Python.gitignore
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# Environments
+.env
+.venv
+env/
+venv/

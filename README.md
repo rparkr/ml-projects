@@ -1,2 +1,2 @@
-# ml-projects
-Machine learning projects I've developed.
+# Machine Learning projects
+This repository contains an assortment of my projects in machine learning.
