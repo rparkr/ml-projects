@@ -14,7 +14,7 @@ Currently, the algorithms I have implemented are:
 ## Neural network from scratch
 A configurable fully-connected neural network that can be used for regression or classification tasks. This is an all-purpose algorithm that can be applied to many tasks like word embeddings, time series predictions, or multiclass classification (especially when using tabular data).
 
-**Key algorithms used include**: gradient descent and backpropagation, cross entropy loss, L2 regularization, sigmoid and ReLU activations, forward propagation, normalization, and a training and validation loop.
+**Key algorithms used include**: backpropagation and gradient descent, cross entropy loss, L2 regularization, sigmoid and ReLU activations, forward propagation, normalization, and a training and validation loop.
 
 Results on sample data:
 |   Classification   |   Regression   |
@@ -23,6 +23,8 @@ Results on sample data:
 
 ## Logistic regression from scratch
 A logistic regression model for binary classification using gradient descent to optimize the model's parameters. Uses any number of input features.
+
+**Key algorithms include:** binary cross entropy loss (log loss), sigmoid, and threshold selection using the inverse of sigmoid.
 
 Training progress on a sample dataset, showing how the decision boundary is updated through gradient descent:  
 ![](/images/logistic_regression_training.gif)
@@ -46,12 +48,12 @@ In [this notebook](/extractive_text_summarizing.ipynb), adapted from a tutorial 
 
 
 # Craiyon Text2Image
-I created an [sort-of API to generate images](/craiyon_text2image.ipynb) using the Craiyon text-to-image model, available at: https://www.craiyon.com/
+I created a [sort-of API to generate images](/craiyon_text2image.ipynb) using the Craiyon text-to-image model, available at: https://www.craiyon.com/
 
 ![](/images/craiyon_text2image_demo.png)
 
 # Text analytics assignments
-I took a computational linguistics course and compiled my work on course assignments into a single notebook. In [this notebook](/text_analytics_assignments.ipynb), I compute precision and recall for varioius NLP algorithms, compare categories and word frequency distributions across a corpus, classify sentiment, use part-of-speech tagging, predict categories using synsets from WordNet, and use LDA to visualize topics, compute the number of topcis using perplexity and coherence, and use a lot of RegEx, web scraping, NLTK, and topic modeling with Gensim.
+I took a computational linguistics course and compiled my work on course assignments into a single notebook. In [this notebook](/text_analytics_assignments.ipynb), I compute precision and recall for various NLP algorithms, compare categories and word frequency distributions across a corpus, classify sentiment, use part-of-speech tagging, predict categories using synsets from WordNet, and use LDA to visualize topics, compute the number of topics using perplexity and coherence, and use a lot of RegEx, web scraping, NLTK, and topic modeling with Gensim.
 
 ![](/images/text_analytics_perplexity_and_coherence.png "Perplexty and coherence chart for topic modeling")
 
