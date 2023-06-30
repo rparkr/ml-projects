@@ -1,10 +1,10 @@
-'''Train a KMeans classifier on any dataset, visualize the output and training
-progress, make predictions for new data, and generate color palettes from
-images.
+'''Train a KMeans classifier on any numeric dataset, visualize the output
+and training progress, make predictions for new data, and generate color
+palettes from images.
 
 This is a vectorized implementation of the k-means clustering algorithm with
-a convenient and robust API to classify data from any dataset and to generate
-color palettes from images.
+a convenient and robust API to classify data from any NumPy dataset and to
+generate color palettes from images.
 
 K-Means is an algorithm that finds groups, or _clusters_, in a dataset by:
 1. choosing $k$ starting data points as the cluster centers
@@ -60,6 +60,7 @@ from matplotlib.patches import Rectangle  # for drawing boxes on plots
 import numpy as np
 from PIL import Image  # the pillow package for loading images into np arrays
 from tqdm.auto import tqdm  # display progress bars
+
 
 
 class KMeans():
@@ -211,7 +212,7 @@ class KMeans():
                 data = (data - self.data_min_) / (self.data_max_ - self.data_min_)
 
         return data
-    
+
 
     def _unnormalize(
             self,
@@ -876,7 +877,9 @@ def choose_clusters(
         data: np.ndarray,
         kmeans: KMeans,
         num: int = 5,
-        size_weight: float = 0.5,
+        weight_distinctness: float = 0.6,
+        weight_size: float = 0.2,
+        weight_cohesiveness: float = 0.2,
         wildcards: str | int | None = None) -> np.ndarray:
     '''Select a subset of the clusters from a trained KMeans classifier.
 
@@ -909,13 +912,17 @@ def choose_clusters(
         If `num` is greater than or equal to the number of clusters trained by
         the classifier, then this function will return all clusters, ranked by
         the sorting function given above.
-    `size_weight`: float in the range [0, 1], default=0.5
-        How much weight to place on the cluster sizes when ranking (larger
-        clusters receive better rankings). The ranking formula considers both
-        cluster size and cluster cohesiveness, as measured by the average
-        distance between each point and its cluster center. The weight for 
-        cluster cohesiveness is the complement of `size_weight`, i.e.,
-        (1 - size_weight).
+    `weight_distinctness`: float in the range [0, 1], default=0.6
+        How much weight to place on the distinctness of a cluster: clusters
+        that are most different from other clusters (e.g., distinct colors)
+        receive better rankings.
+    `weight_size`: float in the range [0, 1], default=0.2
+        How much weight to place on the cluster sizes when ranking: larger
+        clusters--those with more points--receive better rankings.
+    `weight_cohesiveness`: float in the range [0, 1], default=0.2
+        How much weight to place on cluster cohesiveness when ranking:
+        clusters with lower average distance from the center to each point
+        receive better rankings.
     `wildcards`: {int, 'all'}, default=`None`
         Chose `wildcard` number of clusters at random; the rest will be from
         the ranked order based on the scoring calculation above.
@@ -928,20 +935,34 @@ def choose_clusters(
         num = len(kmeans.centers_)
     if num == None:
         num = len(kmeans.centers_) // 3
-    # Ensure the weight is in the range [0, 1]
-    size_weight = np.clip(size_weight, a_min=0, a_max=1)
+    
+    # Ensure weights add up to 1
+    weights = np.array([weight_distinctness, weight_size, weight_cohesiveness])
+    weight_distinctness, weight_size, weight_cohesiveness = weights / weights.sum()
     
     labels = kmeans.classify(data, preserve_input_shape=False)
     counts = np.bincount(labels)
-    # Use weighting factors to balance between cluster size (larger is better) and avg. distance (smaller is better)
-    scores = (
-        (size_weight * (counts / counts.max()))
-        + ((1 - size_weight) * (kmeans.distances_.min() / kmeans.distances_))
-    )
 
-    # Alternative calculation that magnifies (or reduces) cluster size based on cluster cohesiveness.
-    # % of total data points / difference from mean (less than mean is <1, above mean is >1)
-    # scores = (counts / counts.sum()) / (kmeans.distances_ / kmeans.distances_.mean())
+    # Create the norm of each of the centers, for computing cosine similarity
+    centers_norm = kmeans.centers_ / np.sqrt(np.sum(kmeans.centers_ ** 2, axis=1))[:, np.newaxis]
+    # np.sqrt(np.sum(centers_norm ** 2, axis=1))  # norm should be 1.0 for each of the normalized clusters
+    # Output: array([1., 1., 1., 1., ...])
+    
+    # Rank least-similar to most-similar clusters compared to every other cluster
+    similarity_scores = np.argsort(np.matmul(centers_norm, centers_norm.T), axis=1)
+    # Determine the most distinct clusters as the ones ranked least similar
+    num_clusters = similarity_scores.shape[0]  # or, kmeans.k
+    most_distinct = np.bincount(
+        similarity_scores.flatten(order='F'),  # column-wise order
+        weights=(  # the leftmost column, or least-similar, has a weight of 1; subsequent columns have reduced weights
+            np.ones(similarity_scores.shape)
+            * ((np.arange(num_clusters)[::-1] + 1) / num_clusters)).flatten(order='F'))
+    
+    scores = (
+        (weight_distinctness * (most_distinct / most_distinct.max()))
+        + (weight_size * (counts / counts.max()))
+        + (weight_cohesiveness * (kmeans.distances_.min() / kmeans.distances_))
+    )
     
     cluster_indices = np.argsort(scores)[::-1]  # sort in descending order
 
@@ -1046,12 +1067,16 @@ def download_img(url: str, reduced_img_max_size: int=128) -> np.ndarray:
         # Resize the image so the longest side has 128 pixels, thus reducing computation time. See: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.resize
         dims = np.array(img.size)  # width, height
         factor = np.max(dims / reduced_img_max_size)  # reduction factor
-        # Use the LANZCOS method for best resampling quality. See: https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-filters
-        img_small = img.resize(tuple((dims // factor).astype(int)), resample=Image.Resampling.LANCZOS)
         
-        # Alternative method, using default resampling options. See: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.reduce
-        # This sets the longest side to ~128 pixels, but not exactly.
-        # img_small = img.reduce(factor = int(factor))
+        if 'google.colab' in sys.modules:
+            # Google Colab doesn't support the Image.Resample.LANCZOS property, so use Image.reduce() instead
+            # Alternative method, using default resampling options. See: https://pillow.readthedocs.io/en/stable/reference/Image.html#PIL.Image.Image.reduce
+            # This sets the longest side to ~128 pixels, but not exactly.
+            img_small = img.reduce(factor = int(factor))
+        else:
+            # Use the LANZCOS method for best resampling quality. See: https://pillow.readthedocs.io/en/stable/handbook/concepts.html#concept-filters
+            img_small = img.resize(tuple((dims // factor).astype(int)), resample=Image.Resampling.LANCZOS)
+        
     return np.array(img), np.array(img_small)
 
 
@@ -1060,8 +1085,10 @@ def make_color_palette(
         kmeans: KMeans | None = None,
         num: int = 7,
         num_clusters: int | None = None,
-        wildcards: str | int | None = 3,
-        size_weight: float = 0.5,
+        wildcards: str | int | None = None,
+        weight_distinctness: float = 0.6,
+        weight_size: float = 0.2,
+        weight_cohesiveness: float = 0.2,
         save_img_folder_path: str | None = None,
         dpi: int = 150,
         fig_size: tuple=(12, 6),
@@ -1117,19 +1144,23 @@ def make_color_palette(
         of slower computation. Computational speed can be improved by reducing
         `n_rounds`, `max_iter`, or `reduced_image_max_size`, although quality
         may also be reduced, especially if `reduced_image_max_size` is decreased
-    `wildcards`: {int, 'all'}, default=3
+    `wildcards`: {int, 'all'}, default=`None`
         Chose `wildcard` number of clusters (colors) at random; the rest will
         be from a ranked ordering of the clusters from the KMeans classifier.
         If `'all'`, then all clusters will be sampled at random, ignoring
         the ranking order.
         If `None`, then no wildcards will be used.
-    `size_weight`: float in the range [0, 1], default=0.5
-        How much weight to place on the cluster sizes when ranking (larger
-        clusters receive better rankings). The ranking formula considers both
-        cluster size and cluster cohesiveness, as measured by the average
-        distance between each point and its cluster center. The weight for 
-        cluster cohesiveness is the complement of `size_weight`, i.e.,
-        (1 - size_weight).
+    `weight_distinctness`: float in the range [0, 1], default=0.6
+        How much weight to place on the distinctness of a cluster: clusters
+        that are most different from other clusters (e.g., distinct colors)
+        receive better rankings.
+    `weight_size`: float in the range [0, 1], default=0.2
+        How much weight to place on the cluster sizes when ranking: larger
+        clusters--those with more points--receive better rankings.
+    `weight_cohesiveness`: float in the range [0, 1], default=0.2
+        How much weight to place on cluster cohesiveness when ranking:
+        clusters with lower average distance from the center to each point
+        receive better rankings.
     `save_img_folder_path`: str, default=`None`
         The folder (relative to the current working directory) where an
         image of the color palette will be saved before being displayed.
@@ -1201,7 +1232,7 @@ def make_color_palette(
         if num_clusters == None:
             num_clusters = 3 * num
         else:
-            num_clusters = np.max(num, num_clusters)
+            num_clusters = max(num, num_clusters)
 
         # Instantiate the KMeans classifier
         kmeans = KMeans(
@@ -1222,7 +1253,7 @@ def make_color_palette(
         else:
             kmeans.fit(small_img_array, unique_start=True)
         if verbose:
-            print(f"Training complete. Converged in {len(kmeans.num_iters_)} steps on round {kmeans.best_round_}/{kmeans.n_rounds}.")
+            print(f"Training complete. Converged in {kmeans.num_iters_} steps on round {kmeans.best_round_}/{kmeans.n_rounds}.")
 
     # Create the plot: image on left, with color palette on right.
     # A maximum of 12 colors can be displayed, 3 rows by 4 columns.
@@ -1234,7 +1265,9 @@ def make_color_palette(
             kmeans = kmeans,
             num = num,
             wildcards = wildcards,
-            size_weight = size_weight)
+            weight_distinctness = weight_distinctness,
+            weight_size = weight_size,
+            weight_cohesiveness = weight_cohesiveness)
         cluster_colors = mcolors.hsv_to_rgb(
             kmeans._preprocess(cluster_colors, normalize=True)) * 255
     else:
@@ -1243,7 +1276,9 @@ def make_color_palette(
             kmeans = kmeans,
             num = num,
             wildcards = wildcards,
-            size_weight = size_weight)
+            weight_distinctness = weight_distinctness,
+            weight_size = weight_size,
+            weight_cohesiveness = weight_cohesiveness)
     
     nearest_colors = find_nearest_named_colors(
         kmeans,
@@ -1273,7 +1308,7 @@ def make_color_palette(
         else:
             x_start = 4
         # Choose text color based on perceived luminance. Calculation from: https://matplotlib.org/stable/tutorials/colors/colors.html#comparison-between-x11-css4-and-xkcd-colors
-        luminance = 0.299 * (cluster_colors[n, 0] / 255) + 0.587 * (cluster_colors[n, 1] / 255) + 0.114 * (cluster_colors[n, 2] / 255)
+        luminance = np.sum(np.array([0.299, 0.587, 0.114]) * (cluster_colors[n] / 255))
         font_color = 'black' if luminance > 0.5 else 'white'
         axs[1].add_patch(
             Rectangle(
@@ -1301,7 +1336,7 @@ def make_color_palette(
         # Nearest named color
         if nearest_named_colors:
             # Choose text color based on perceived luminance. Calculation from: https://matplotlib.org/stable/tutorials/colors/colors.html#comparison-between-x11-css4-and-xkcd-colors
-            luminance = 0.299 * (color_dict['rgb'][0] / 255) + 0.587 * (color_dict['rgb'][1] / 255) + 0.114 * (color_dict['rgb'][2] / 255)
+            luminance = np.sum(np.array([0.299, 0.587, 0.114]) * (cluster_colors[n] / 255))
             font_color = 'black' if luminance > 0.5 else 'white'
             axs[1].add_patch(
                 Rectangle(
