@@ -883,16 +883,28 @@ def choose_clusters(
         wildcards: str | int | None = None) -> np.ndarray:
     '''Select a subset of the clusters from a trained KMeans classifier.
 
-    Clusters are ranked by this formula:
-    (size_weight * cluster_size_rank) + ((1 - size_weight) * cluster_cohesiveness_rank)
-    
-    where cluster_size_rank and cluster_cohesiveness_rank each have a max value
-    of 1: for cluster_size that is the largest cluster (by number samples) and
-    for cluster_cohesiveness that is the cluster with the smallest average
-    distance to each of its points.
-
     The scores of all clusters are computed, then sorted in descending order,
     with the largest `num` clusters returned.
+
+    Clusters are ranked by this formula:
+    ```python
+    rankings = (
+        (weight_distinctness * cluster_distinctness_rank)
+      + (weight_size * cluster_size_rank)
+      + (weight_cohesiveness * cluster_cohesiveness_rank)
+    )
+    ```
+    where `cluster_distinctness_rank`, `cluster_size_rank`, and
+    `cluster_cohesiveness_rank` each have a max value of 1: for 
+    `cluster_distinctness` that is the cluster that is most distinct from all
+    others (that is, the least similar, or farthest in distance across all
+    dimensions), for `cluster_size` that is the largest cluster (by number of
+    samples), and for `cluster_cohesiveness` that is the cluster with the
+    smallest average distance to each of its points.
+
+    `cluster_size_rank` and `cluster_cohesiveness_rank` tend to be directly
+    correlated, and `cluster_distinctness_rank` tends to differ from the other
+    two, which is why the default settings give it more weight.
     
     # Parameters
     `data`: np.ndarray
