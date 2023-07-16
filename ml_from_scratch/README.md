@@ -12,7 +12,7 @@ Currently, the algorithms I have implemented are:
 ## Neural network from scratch
 A configurable fully-connected neural network that can be used for regression or classification tasks. This is an all-purpose algorithm that can be applied to many tasks like word embeddings, time series predictions, or multiclass classification (especially when using tabular data).
 
-**Key algorithms used include**: gradient descent and backpropagation, cross entropy loss, L2 regularization, sigmoid and ReLU activations, forward propagation, normalization, and a training and validation loop.
+**Key algorithms used include**: gradient descent and backpropagation, cross entropy loss, L2 regularization, sigmoid and ReLU activations, forward propagation, normalization, parameter initialization, and a training and validation loop.
 
 Results on sample data:
 |   Classification   |   Regression   |
