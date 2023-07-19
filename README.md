@@ -51,10 +51,14 @@ A linear regression model trained using gradient descent with optional early sto
 Results from a multilinear regression demo: notice that `y_hat` (color gradient) closely matches `y` (vertical axis).
 ![](./images/linear_regression.png)
 
-# Dominant Color Extraction
+# Dominant color extraction
 In my [dominant color extraction](./dominant_color_extraction.ipynb) notebook, I use the K-Means algorithm to estimate the main color for an image, which I then apply to the task of detecting a vehicle's color given an image of that vehicle. I used this technique in my [vehicle specs](https://github.com/rparkr/ML-practice/blob/main/Vehicle%20specs/Final%20project/ML_pipeline_Vehicle_Specs.ipynb) project as part of a feature engineering pipeline to augment a dataset with vehicle color information.
 
 ![](./images/dominant_color_extraction.png)
+
+# GBM comparison
+A comparison of different Gradient Boosting Machine (GBM) implementations on a classification dataset, including visualizations.
+![chart showing feature rankings for four different ML models](./images/gbm_comparison.png)
 
 
 # Extractive text summarizing
